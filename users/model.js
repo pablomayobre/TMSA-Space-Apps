@@ -135,7 +135,8 @@ module.exports = {
     if (model) {
       state = "found";
 
-      if (user.name !== name && user.location !== user.location) {
+      if (user.name !== name || user.location !== location) {
+        console.log("UPDATED HERE", name, user.name, location, user.location)
         state = "updated";
 
         user.name = name;

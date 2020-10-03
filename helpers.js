@@ -61,7 +61,7 @@ module.exports = {
    * @param {string[]} roles
    */
   hasRoles(member, roles) {
-    if (roles.length === 0) return true;
+    if (!roles || roles.length === 0) return true;
 
     return !!member.roles.cache.find((role) => {
       return !!roles.find((name) =>

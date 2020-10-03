@@ -4,11 +4,12 @@ const db = require("../users/model");
  * @type {import("../bot").Command}
  */
 module.exports = {
+  hidden: true,
   roles: ["Organizador", "Admin"],
   channels: ["comandos"],
   usage: "",
   description:
-    "Remueve a todos los usuarios de la base de datos, solo usar para resetear.",
+    "Reintentar enviar todas las invitaciones por mail",
   exec: async ({message}) => {
     await message.react("🤖");
     

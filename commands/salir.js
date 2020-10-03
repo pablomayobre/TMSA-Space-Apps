@@ -16,11 +16,12 @@ const { Categories } = require("../Categories");
  * @type {import("../bot.js").Command}
  */
 module.exports = {
+  hidden: false,
   roles: ["Participante"],
   channels: [],
   usage: "",
   description:
-    "Remueve a todos los usuarios de la base de datos, solo usar para resetear.",
+    "Salir del grupo en el que estés actualmente",
   exec: async ({message}) => {
     console.log("HEY")
     await message.react("🤖");

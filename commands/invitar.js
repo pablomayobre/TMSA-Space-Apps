@@ -36,11 +36,12 @@ RoleMap.set("mentores", "mentor");
  * @type {import("../bot").Command}
  */
 module.exports = {
+  hidden: true,
   roles: ["Organizador", "Admin"],
   channels: ["comandos"],
-  usage: "[rol] <Excel adjunto>",
+  usage: "participante | mentor | sponsor | jurado | organizador <Excel adjunto>",
   description:
-    "Permite invitar miembros con un determinado rol al canal",
+    "Invitar miembros con un determinado rol al canal",
   exec: async ({ message, split }) => {
     await message.react("🤖");
 
@@ -50,15 +51,13 @@ module.exports = {
       );
     }
 
-    const rawRole = split[0].toLowerCase();
-
-    if (!RoleMap.has(rawRole)) {
+    if (!split[0] || !RoleMap.has(split[0].toLowerCase())) {
       return await message.reply(
         "El rol especificado no es valido, utilice uno de los siguientes: Participante, Organizador, Partocinador, Jurado, Mentor"
       );
     }
 
-    const role = RoleMap.get(rawRole);
+    const role = RoleMap.get(split[0].toLowerCase());
     const guild = message.guild;
 
     const attachment = message.attachments.first();

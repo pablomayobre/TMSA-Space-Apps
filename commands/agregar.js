@@ -14,28 +14,51 @@ const { MessageEmbed } = require("discord.js");
 // @ts-ignore
 const Locations = new Set(["Mendoza", "Bariloche", "San Juan"])
 
+const { Categories } = require("../Categories");
+const ReverseCategories = new Map([...Categories.entries()].map(([location, id]) => [id, location]))
+
 /**
  * @type {import("../bot").Command}
  */
 module.exports = {
+  hidden: false,
   roles: ["Organizador", "Participante", "Admin"],
   channels: [],
-  usage: "",
+  usage: "@participante...",
   description:
-    "Remueve a todos los usuarios de la base de datos, solo usar para resetear.",
+    "Agrega a los usuarios mencionados al grupo del que formas parte",
   exec: async ({message}) => {
     await message.react("🤖");
     const prevMember = message.member;
 
-    const group = prevMember.roles.cache.find((role) =>
-      /(.+) - Grupo (.+)/gi.test(role.name)
-    );
+    let group, groupLocation
+    if (prevMember.roles.cache.find((role) => role.name === "Organizador" || role.name === "Admin")){
+      const groupChannel = message.channel
 
-    if (!group) {
-      return await message.reply("Primero debés formar parte de un grupo. Podes usar el comando `!grupo` y mencionar a tus compañeros.")
+      if (groupChannel.type === "dm") return await message.reply("Este comando no funciona por mensajes privados.");
+
+      const result = /grupo-(.+)/.exec(groupChannel.name)
+      groupLocation = groupChannel.parentID && ReverseCategories.get(groupChannel.parentID)
+
+      console.log("RESULT", result)
+      console.log(groupLocation, groupChannel.parentID)
+
+      if (!result || !groupLocation) return await message.reply("Los organizadores solo pueden usar este comando en un canal de grupo.");
+      
+      group = message.guild.roles.cache.find((role) =>
+        role.name === `${groupLocation} - Grupo ${result[1]}`
+      );
+    } else {
+      group = prevMember.roles.cache.find((role) =>
+        /(.+) - Grupo (.+)/gi.test(role.name)
+      );
+
+      if (!group) {
+        return await message.reply("Primero debés formar parte de un grupo. Podes usar el comando `!grupo` y mencionar a tus compañeros.")
+      }
+
+      [,groupLocation] = /(.+) - Grupo (.+)/gi.exec(group.name)
     }
-
-    const [,groupLocation] = /(.+) - Grupo (.+)/gi.exec(group.name)
 
     if (message.mentions.users.size <= 0) {
       return await message.reply("Se necesita mencionar a uno o más miembros, para agregarlos al equipo")

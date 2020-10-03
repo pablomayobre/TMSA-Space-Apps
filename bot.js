@@ -44,6 +44,7 @@ require("fs")
 
 /**
  * @typedef {Object} Command
+ * @property {boolean} hidden - Whether to hide this command to non-Admin users
  * @property {string[]} roles - Whether to hide this command to non-Admin users
  * @property {string[]} channels - Whether to hide this command to non-Admin users
  * @property {string} usage - Visual representation of the arguments the command takes
@@ -103,6 +104,8 @@ bot.on("ready", async () =>  {
 
   if (guild) {
     await allSettled(guild.members.cache.map(async (member) => {
+      if (member.roles.cache.size > 0) return;
+
       const channel = await member.createDM(true);
 
       console.log(channel)
@@ -114,9 +117,9 @@ bot.on("ready", async () =>  {
       }
     }))
 
-    const channel = helpers.findChannel("anuncios", guild)
+    // const channel = helpers.findChannel("anuncios", guild)
 
-    await channel.send("Lo siento mucho @everyone! Tuve un problema técnico y me fui a dormir por un rato 😴. Espero no haberles causado muchos problemas 🙏. Ya estoy de vuelta para ayudarlos a validarse y crear sus grupos 🥰.")
+    // await channel.send("Lo siento mucho @everyone! Tuve un problema técnico y me fui a dormir por un rato 😴. Espero no haberles causado muchos problemas 🙏. Ya estoy de vuelta para ayudarlos a validarse y crear sus grupos 🥰.")
   } else {
     console.log("GUILD NOT FOUND")
   }

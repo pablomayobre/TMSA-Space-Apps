@@ -59,7 +59,7 @@ Bienvenido a nuestro servidor de Discord. Este va a ser el principal medio de co
   notValidated: `Hemos tenido inconvenientes validando tu correo electrónico.
 
 Si no te ha llegado una invitación por correo electrónico, es posible que no estés inscripto correctamente al evento.
-De ser así, te sugerimos buscar la localidad más cercana en http://argentina.marssociety.org/spaceapps y registrarte al evento.
+De ser así, te sugerimos buscar la localidad más cercana en <http://argentina.marssociety.org/spaceapps> y registrarte al evento.
       
 Si recibiste una invitación al correo, respondé este mensaje con: **SPACEAPPS**`,
 

@@ -8,11 +8,12 @@ const db = require("../users/model");
  * @type {import("../bot").Command}
  */
 module.exports = {
+  hidden: true,
   roles: ["Admin", "Organizador"],
   channels: ["comandos"],
-  usage: "[@usuario | mail@ejemplo.com]",
+  usage: "@usuario | mail@ejemplo.com",
   description:
-    "Brinda información sobre un usuario en particular",
+    "Obtener información sobre un usuario en particular",
   exec: async ({message, split, bot}) => {
     /** @type {GuildMember} */
     let member

@@ -193,11 +193,12 @@ const createGroup = async (location, members, message) => {
  * @type {import("../bot").Command}
  */
 module.exports = {
+  hidden: false,
   roles: ["Organizador", "Participante", "Admin"],
   channels: [],
-  usage: "",
+  usage: "@participante...",
   description:
-    "Remueve a todos los usuarios de la base de datos, solo usar para resetear.",
+    "Forma un grupo con los participantes etiquetados",
   exec: async ({ message }) => {
     await message.react("🤖");
 
