@@ -1,6 +1,6 @@
 const app = require("express")()
 
-//require("./bot")
+require("./bot")
 
 app.get('/', (req, res) => {
   res.send('Hello World!')
