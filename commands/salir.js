@@ -23,7 +23,6 @@ module.exports = {
   description:
     "Salir del grupo en el que estés actualmente",
   exec: async ({message}) => {
-    console.log("HEY")
     await message.react("🤖");
     const member = message.member
     const group = member.roles.cache.find((role) =>

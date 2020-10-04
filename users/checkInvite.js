@@ -3,97 +3,57 @@ const dmCommand = require("./dmCommand");
 const { getUserEmbed } = require("./getUserEmbed");
 const db = require("./model");
 
-const add = async (member) => {
-  if (member.partial) {
-    try {
-      await member.fetch();
-    } catch (error) {
-      console.log("Something went wrong when fetching the member: ", error);
-      return;
-    }
-  }
-
-  if (member.partial === false) {
-    const channel = await member.createDM(true);
-    const invites = await db.findInvite(member.guild);
-
-    const firstMessage = channel.send(dmCommand.dialogs.welcome);
-
-    if (
-      invites.length === 1 &&
-      (await db.completeFromUser(member, invites[0]))
-    ) {
-      await firstMessage;
-      await channel.send(dmCommand.dialogs.birthday);
-    } else {
-      await firstMessage;
-      await channel.send(dmCommand.dialogs.notValidated);
-    }
-  }
-}
-
-
 module.exports = {
   /**
- * @param {import("discord.js").Client} bot
- */
-  checkInvite: (bot) => {
-    bot.on("guildMemberRemove", async (member) => {
-      if (member.partial) {
-        try {
-          await member.fetch();
-        } catch (error) {
-          console.log("Something went wrong when fetching the member: ", error);
-          return;
-        }
+   * @param {import("discord.js").GuildMember} member
+   */
+  async removeMember(member) {
+    if (member.partial) {
+      try {
+        await member.fetch();
+      } catch (error) {
+        console.log("REMOVEMEMBER: Algo salio mal tratando de resolver un miembro parcial.", error);
+        return;
       }
+    }
 
-      if (member.partial === false) {
-        const user = await db.findMember(member);
-        helpers
-          .findChannel("sistema", member.guild)
-          .send(
-            "",
-            await getUserEmbed(
-              "RED",
-              "Este usuario ha abandonado el servidor",
-              user,
-              member
-            )
-          );
+    if (member.partial === false) {
+      const user = await db.findMember(member);
+      helpers
+        .findChannel("sistema", member.guild)
+        .send(
+          "",
+          await getUserEmbed(
+            "RED",
+            "Este usuario ha abandonado el servidor",
+            user,
+            member
+          )
+        );
 
-        console.log("Left: ", await db.deleteUserByMember(user.memberid));
-      }
-    });
-
-    bot.on("guildMemberAdd", async (member) => {
-      if (member.partial) {
-        try {
-          await member.fetch();
-        } catch (error) {
-          console.log("Something went wrong when fetching the member: ", error);
-          return;
-        }
-      }
-
-      if (member.partial === false) {
-        const channel = await member.createDM(true);
-        const invites = await db.findInvite(member.guild);
-
-        const firstMessage = channel.send(dmCommand.dialogs.welcome);
-
-        if (
-          invites.length === 1 &&
-          (await db.completeFromUser(member, invites[0]))
-        ) {
-          await firstMessage;
-          await channel.send(dmCommand.dialogs.birthday);
-        } else {
-          await firstMessage;
-          await channel.send(dmCommand.dialogs.notValidated);
-        }
-      }
-    });
+      if (!user) return;
+      console.log(`REMOVEMEMBER: @${member.user.tag} ha abandonado el servidor.`, await db.deleteUserByMember(user.memberid));
+    }
   },
-  add,
-}
+
+  /**
+   * @param {import("discord.js").GuildMember} member
+   */
+  async addMember(member) {
+    if (member.partial) {
+      try {
+        await member.fetch();
+      } catch (error) {
+        console.log("ADDMEMBER: Algo salio mal tratando de resolver un miembro parcial.", error);
+        return;
+      }
+    }
+
+    if (member.partial === false) {
+      const channel = await member.createDM(true);
+
+      await channel.send(dmCommand.dialogs.welcome);
+      await channel.send(dmCommand.dialogs.email);
+    }
+  },
+};

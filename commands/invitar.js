@@ -2,8 +2,8 @@ const fetch = require("node-fetch");
 const xlsx = require("xlsx");
 const allSettled = require("promise.allsettled");
 const db = require("../users/model");
-const {getRoles} = require("../users/getRoles");
 const { MessageEmbed } = require("discord.js");
+const { completeUser } = require("../users/completeUser");
 
 /** @type {Map<string, import("../users/model").Role>} */
 const RoleMap = new Map();
@@ -60,24 +60,25 @@ module.exports = {
     const role = RoleMap.get(split[0].toLowerCase());
     const guild = message.guild;
 
+    console.log("INVITE: Descargando archivo adjunto.")
+
     const attachment = message.attachments.first();
-    console.log("Hey")
     const fetched = await fetch(attachment.url)
-    console.log("fetched")
     const file = await fetched.arrayBuffer();
-    console.log("buffer secured")
     const workbook = xlsx.read(file, {type:'buffer'});
-    console.log("workbook opened")
 
     /** @type {ExcelData[]} **/
     const data = xlsx.utils.sheet_to_json(
       workbook.Sheets[workbook.SheetNames[0]]
     );
-    console.log("data secured")
 
+    console.log("INVITE: Procesando archivo adjunto.")
+
+    const mails = []
     const results = await allSettled(
       data.map(async ({ Name, Email, Location }) => {
-        console.log(`Adding user: ${Name} <${Email}>`);
+        mails.push(Email);
+
         return await db.addUser(
           attachment.id,
           Email,
@@ -96,11 +97,8 @@ module.exports = {
       found: 0,
       updated: 0,
       upgraded: 0,
-      created: 0,
       invited: 0,
     };
-    /** @type {string[]} */
-    const notSent = [];
 
     /** @type {Map<string, import("../users/model").User>} */
     const upgrade = new Map();
@@ -112,62 +110,45 @@ module.exports = {
         if ((state === "upgraded" || state === "updated") && user.memberid)
           upgrade.set(user.memberid, user);
 
-        if (state === "created") {
-          notSent.push(
-            ` - ${user.name} <${user.mail}> - codigo: ${user.invite}`
-          );
-        }
-
-        console.log("State", state, count[state])
         count[state] += 1;
-        console.log("Increased", state, count[state])
       } else {
         count.error += 1;
-        console.log("Error en resultados de invitaciones", result.reason)
       }
     });
 
     {
       const [
         removedUsers,
-        removedInvites,
         database,
         totalRemoved,
-      ] = await db.deleteRemovedUsers(attachment.id, role);
+      ] = await db.deleteRemovedUsers(mails, role);
+
+      const updated = []
 
       const members = guild.members.cache
         .filter((member) => {
           if (upgrade.has(member.id) && member.roles.cache.size > 0) {
-            console.log(`Updating ${member.nickname}`);
+            console.log(`INVITE: Actualizando datos de @${member.user.tag}`);
             const user = upgrade.get(member.id);
 
-            member.setNickname(`${user.name}${user.role === "organizer" ? ' 🚀': ''}`).then((member) => {
-              member.roles.set(getRoles(member, guild, user));
-            });
+            updated.push(completeUser(member, user))
           }
 
           return removedUsers.has(member.id);
         })
         .map((member) => {
-          console.log(`Kicking ${member.nickname}`);
+          console.log(`INVITE: Kickeando a @${member.user.tag}`);
           return member.kick(
             "Este usuario ya no se encuentra inscripto en el evento."
           );
         });
 
-      const invites = (await guild.fetchInvites())
-        .filter((invite) => {
-          return removedInvites.has(invite.code);
-        })
-        .map((invite) => {
-          console.log(`Removed invite ${invite.code}`);
-          return invite.delete();
-        });
-
-      await allSettled([members, invites, database]);
+      await allSettled([members, database, ...updated]);
 
       count.removed = totalRemoved;
     }
+
+    console.log("INVITE: Comando completado")
 
     const embed = new MessageEmbed()
       .setTitle("Invitaciones")
@@ -200,22 +181,12 @@ module.exports = {
           inline: true,
         },
         {
-          name: "Sin invitar:",
-          value: count.created,
-          inline: true,
-        },
-        {
           name: "Errores invitando:",
           value: count.error,
           inline: true,
         },
       ])
-      .setFooter(
-        notSent.length > 0
-          ? `No se pudieron entregar las siguientes invitaciones:
-${notSent.join("\n")}`
-          : "No quedan invitaciones por entregar"
-      );
+
 
     return await message.reply("", embed);
   },

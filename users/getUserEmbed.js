@@ -41,17 +41,12 @@ const getUserEmbed = async (color, description, user, member) => {
         value: user.invite,
         inline: true,
       },
-      {
-        name: "Invitación Enviada",
-        value: user.inviteSent ? "Si" : "No",
-        inline: true,
-      },
     ]);
   }
 
   if (member) {
     embed
-      .setTitle(member.nickname)
+      .setTitle(member.nickname ? member.nickname : (user ? user.name : member.user.username))
       .addField("Usuario", `@${member.user.tag}`)
   }
 

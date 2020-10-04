@@ -1,13 +1,12 @@
 const Discord = require("discord.js");
 const path = require("path");
-const credentials = require("./credentials.json");
 const dmCommand = require("./users/dmCommand");
-const {checkInvite, add} = require("./users/checkInvite");
+const {removeMember, addMember} = require("./users/checkInvite");
 const helpers = require("./helpers");
 const allSettled = require("promise.allSettled")
 const db = require("./users/model")
 
-const whitelist = new Set(credentials.whitelist);
+const whitelist = new Set(process.env.DISCORDSERVERID);
 const bot = new Discord.Client({
   partials: ["MESSAGE", "CHANNEL", "REACTION"],
 });
@@ -62,7 +61,6 @@ bot.on("message", (message) => {
   commandRegexp.lastIndex = 0;
 
   if (command && commands.has(command[1])) {
-    console.log(name)
     const Command = commands.get(command[1])
     
     const validChannel = helpers.isValidChannel(message, Command.channels)
@@ -71,7 +69,8 @@ bot.on("message", (message) => {
     const permission = helpers.hasRoles(message.member, Command.roles)
     if (!permission) return;
 
-    console.log(Command, permission, validChannel)
+
+    console.log(`COMMAND: @${message.author.tag} ejecutó el comando: !${name} ${split.join(" ")}`)
     Command.exec({
       name,
       commands,
@@ -86,18 +85,17 @@ bot.on("guildCreate", (guild) => {
   if (!whitelist.has(guild.id)) {
     guild.leave();
     console.log(
-      `This bot is not allowed to join the server: "${guild.name}" (ID: ${guild.id})`
+      `JOIN: Se intentó agregar a Mars Bot a un servidor invalido: "${guild.name}" (ID: ${guild.id})`
     );
   }
 });
 
-checkInvite(bot)
-
-bot.login(credentials.token);
+bot.on("guildMemberRemove", removeMember)
+bot.on("guildMemberAdd", addMember)
 
 bot.on("ready", async () =>  {
   console.log(
-    `https://discordapp.com/api/oauth2/authorize?client_id=${bot.user.id}&permissions=0&scope=bot`
+    `READY: Unir al bot: https://discordapp.com/api/oauth2/authorize?client_id=${bot.user.id}&permissions=0&scope=bot`
   )
 
   const guild = bot.guilds.cache.first()
@@ -108,10 +106,8 @@ bot.on("ready", async () =>  {
 
       const channel = await member.createDM(true);
 
-      console.log(channel)
-
       if ((await channel.messages.fetch()).size === 0 || !await db.findMember(member)) {
-        return await add(member)
+        return await addMember(member)
       } else {
         await dmCommand.command(channel.lastMessage, channel, bot)
       }
@@ -121,10 +117,10 @@ bot.on("ready", async () =>  {
 
     // await channel.send("Lo siento mucho @everyone! Tuve un problema técnico y me fui a dormir por un rato 😴. Espero no haberles causado muchos problemas 🙏. Ya estoy de vuelta para ayudarlos a validarse y crear sus grupos 🥰.")
   } else {
-    console.log("GUILD NOT FOUND")
+    console.log("READY: No se encontró ningun servidor.")
   }
 })
 
-
+bot.login(process.env.DISCORDTOKEN);
 
 module.exports = bot;

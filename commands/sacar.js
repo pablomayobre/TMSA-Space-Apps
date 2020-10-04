@@ -23,7 +23,6 @@ module.exports = {
   description:
     "Sacar a un usuario de su grupo",
   exec: async ({message}) => {
-    console.log("HEY")
     await message.react("🤖");
     const user = message.mentions.users.first()
 

@@ -1,14 +1,12 @@
 const allSettled = require("promise.allsettled");
 const { Sequelize, DataTypes, Op } = require("sequelize");
-const helpers = require("../helpers");
-const sendInvite = require("./sendInvite");
-const db = new Sequelize({
-  dialect: "sqlite",
-  storage: "./spaceapps.sqlite",
+const pushId = require("unique-push-id");
+const db = new Sequelize(process.env.DATABASE_URL, {
+  logging: false,
   dialectOptions: {
     ssl: {
           require: true,
-          rejectUnauthorized: false // <<<<<< YOU NEED THIS
+          rejectUnauthorized: false
       }
   }
 });
@@ -25,7 +23,7 @@ const RoleOrder = {
 };
 
 /**
- * @typedef {'found' | 'updated' | 'upgraded' | 'created' | 'invited'} State
+ * @typedef {'found' | 'updated' | 'upgraded' | 'invited'} State
  * 
  * @typedef {"Mendoza"|"Bariloche"|"San Juan"} Location
  *
@@ -114,6 +112,20 @@ module.exports = {
     return [ret, ret];
   },
 
+
+  /**
+   * @param {User} user
+   */
+  async invalidateUser(user) {
+    await synced;
+    /** @type {Model} */
+    // @ts-ignore
+    const model = user
+
+    user.memberid = null
+    return !!await model.save()
+  },
+
   /**
    * @param {string} code
    * @param {string} mail
@@ -124,6 +136,7 @@ module.exports = {
    * @return {Promise<[State, User, Model]>}
    */
   async addUser(code, mail, name, location, role, guild) {
+    await synced;
     let model = await User.findOne({ where: { mail: mail } });
     /**@type {User}*/
     // @ts-ignore
@@ -136,7 +149,6 @@ module.exports = {
       state = "found";
 
       if (user.name !== name || user.location !== location) {
-        console.log("UPDATED HERE", name, user.name, location, user.location)
         state = "updated";
 
         user.name = name;
@@ -154,79 +166,53 @@ module.exports = {
       // @ts-ignore
       user = model;
     } else {
-      state = "created";
-
-      const invite = await helpers.findChannel("bienvenida", guild).createInvite({
-        temporary: false,
-        maxUses: 1,
-        maxAge: 0,
-        unique: true,
-        reason: `Single use, unique invitation for a new ${role}`,
-      });
-
-      const [invited, response] = await sendInvite(
-        mail,
-        role,
-        location,
-        invite.code
-      );
-
-      console.log("INVITAR: ", mail)
-      
-      console.log(invited, response);
+      /** @type {string} */
+      const invite = pushId();
 
       [user, model] = await this.createUser({
-        invite: invite.code,
+        invite,
         name,
         mail,
         role,
         location,
         lastUpdateCode: code,
-        inviteSent: invited,
+        inviteSent: true,
       });
 
-      if (!invited)
-        console.log(`Failed to invite ${name} <${mail}>. Reason: ${response}`);
-      else
-        state = "invited"
+
+      state = "invited"
     }
 
     return [state, user, model];
   },
 
   /**
-   * @param {string} code
+   * @param {string[]} mails
    * @param {Role} role
-   * @return {Promise<[Set<string>, Set<string>, Promise<import("promise.allsettled/types").PromiseResult<void, unknown>[]>, number]>}
+   * @return {Promise<[Set<string>, Promise<import("promise.allsettled/types").PromiseResult<void, unknown>[]>, number]>}
    */
-  async deleteRemovedUsers(code, role) {
+  async deleteRemovedUsers(mails, role) {
+    await synced;
     const users = await User.findAll({
       where: {
-        lastUpdateCode: {
-          [Op.not]: code,
+        mail: {
+          [Op.notIn]: mails,
         },
         role: role,
       },
     });
 
     const removedUsers = new Set();
-    const removedInvites = new Set()
 
     return [
       removedUsers,
-      removedInvites,
       allSettled(
         users.map((model) => {
           /** @type {User} */
           // @ts-ignore
           const user = model;
 
-          console.log(user.lastUpdateCode, code)
-
-          if (user.lastUpdateCode === code) return;
-
           if (user.memberid) removedUsers.add(user.memberid);
-          if (user.invite) removedInvites.add(user.invite);
 
           return model.destroy();
         })
@@ -240,6 +226,7 @@ module.exports = {
    * @param {User} user
    */
   async completeFromUser(member, user) {
+    await synced;
     const [updated] = await User.update(
       { memberid: member.id },
       {
@@ -254,71 +241,12 @@ module.exports = {
     return updated > 0;
   },
 
-  async tryInvite() {
-    const members = await User.findAll({
-      where: {
-        inviteSent: false
-      }
-    })
-
-    console.log(members)
-
-    const results = await allSettled(members.map(async (model) => {
-      /** @type {User} */
-      // @ts-ignore
-      const user = model
-
-      const [invited, response] = await sendInvite(
-        user.mail,
-        user.role,
-        user.location,
-        user.invite
-      );
-
-      if (!invited) throw response;
-
-      user.inviteSent = user.inviteSent || invited
-      await model.save()
-    }))
-
-    return results.reduce((final, result) => {
-      if (result.status === "rejected") {
-        final[1] += 1;
-        return final
-      } else {
-        final[0] += 1;
-        return final
-      }
-    }, [0, 0])
-  },
-
-  /**
-   * @param {import("discord.js").Guild} guild
-   * @returns {Promise<User[]>}
-   */
-  async findInvite(guild) {
-    const [invites, queried] = await Promise.all([
-      guild.fetchInvites(),
-      User.findAll({
-        where: { memberid: null },
-      }),
-    ]);
-
-    /** @type {User[]} */
-    // @ts-ignore
-    const pending = queried;
-
-    return pending.filter((user) => {
-      if (!invites.has(user.invite) || invites.get(user.invite).uses > 0) return true;
-      return false;
-    });
-  },
-
   /**
    * @param {import("discord.js").GuildMember|import("discord.js").User} member 
    * @returns {Promise<User|null>}
    */
   async findMember(member) {
+    await synced;
     const found = await User.findOne({
       where: {
         memberid: member.id
@@ -334,6 +262,7 @@ module.exports = {
    * @returns {Promise<User|null>}
    */
   async findMail(mail) {
+    await synced;
     const found = await User.findOne({
       where: {
         mail,
@@ -345,25 +274,11 @@ module.exports = {
   },
 
   /**
-   * @param {string} code
-   * @returns {Promise<User|null>}
-   */
-  async findCode (code) {
-    const found = await User.findOne({
-      where: {
-        invite: code
-      }
-    })
-    
-    // @ts-ignore
-    return found
-  },
-
-  /**
    * @param {User} user 
    * @param {Date} date 
    */
   async fillBirthday (user, date) {
+    await synced;
     const [updated] = await User.update({
       birthday: date
     }, {
@@ -379,6 +294,7 @@ module.exports = {
    * @param {string} memberid
    */
   async deleteUserByMember(memberid) {
+    await synced;
     const deleted = await User.destroy({
       where: {
         memberid
@@ -387,24 +303,4 @@ module.exports = {
 
     return deleted > 0;
   },
-  /**
-   * @param {string} mail
-   */
-  async deleteUserByMail(mail) {
-    const deleted = await User.destroy({
-      where: {
-        memberid: null,
-        mail: mail,
-      },
-    });
-
-    return deleted > 0;
-  },
-
-  clear () {
-    return User.destroy({
-      where: {},
-      truncate: true
-    })
-  }
 };

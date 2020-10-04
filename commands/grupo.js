@@ -94,7 +94,7 @@ const createGroup = async (location, members, message) => {
       return current;
     }, 0) + 1;
 
-  console.log(group, location, members.length);
+  console.log(`GROUP: Creando el grupo ${group} en ${location}`);
 
   const role = await guild.roles.create({
     data: {
@@ -162,6 +162,7 @@ const createGroup = async (location, members, message) => {
   const parent = Categories.get(location);
   const reason = `Este es el canal creado especificamente para el grupo ${group} de ${location}`;
 
+  console.log("GROUP: Creando canales de texto y voz");
   const [textChannel, voiceChannel] = await allSettled([
     guild.channels.create(`grupo-${group}`, {
       type: "text",
@@ -197,8 +198,7 @@ module.exports = {
   roles: ["Organizador", "Participante", "Admin"],
   channels: [],
   usage: "@participante...",
-  description:
-    "Forma un grupo con los participantes etiquetados",
+  description: "Forma un grupo con los participantes etiquetados",
   exec: async ({ message }) => {
     await message.react("🤖");
 
@@ -219,8 +219,6 @@ module.exports = {
 
     let count = 0;
 
-    console.log("MENTIONS");
-
     /**
      * @param {User} user
      */
@@ -228,14 +226,9 @@ module.exports = {
       const member = message.guild.members.cache.get(user.id);
 
       if (!member) {
-        console.log(
-          "WTF SE ETIQUETO A UN USUARIO QUE NO FORMA PARTE DEL SERVIDOR",
-          user.tag
-        );
+        console.log(`GROUP: Etiqueta erronea: @${user.tag}`);
         return;
       }
-
-      console.log("MEMBER");
 
       if (!member.roles.cache.find((role) => role.name === "Participante")) {
         errors.noRole.push(member);
@@ -255,23 +248,23 @@ module.exports = {
         }
       });
 
-      console.log("LOCATION", location);
-
       if (!location) {
         console.log(
-          "ESTE USUARIO NO TIENE UBICACIÓN DE DONDE SALIO?!",
-          user.tag
+          `GROUP: Usuario sin ubicación, posiblemente un error @${user.tag}`
         );
         return;
       }
 
-      const prefix = `${location} - Grupo `
-      const group = member.roles.cache.find((role) => 
+      const prefix = `${location} - Grupo `;
+      const group = member.roles.cache.find((role) =>
         role.name.startsWith(prefix)
-      )
+      );
 
       if (group) {
-        errors.hasGroup.push([`Grupo ${group.name.slice(prefix.length)} de ${location}`, member])
+        errors.hasGroup.push([
+          `Grupo ${group.name.slice(prefix.length)} de ${location}`,
+          member,
+        ]);
       }
 
       locations[location].push(member);
@@ -303,11 +296,11 @@ module.exports = {
     if (count > 6) errors.maxQuantity.push(count);
 
     if (Object.entries(errors).find(([, values]) => values.length > 0)) {
-      console.log("FAILURE");
+      console.log("GROUP: No se pudo crear el grupo");
       return await reportErrors(message, errors, entries[0][0]);
     } else {
       // SUCCESS!
-      console.log("SUCCESS");
+      console.log("GROUP: Grupo creado satisfactoriamente");
       const [location, members] = entries[0];
 
       return await createGroup(location, members, message);

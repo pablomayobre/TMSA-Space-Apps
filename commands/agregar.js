@@ -40,9 +40,6 @@ module.exports = {
       const result = /grupo-(.+)/.exec(groupChannel.name)
       groupLocation = groupChannel.parentID && ReverseCategories.get(groupChannel.parentID)
 
-      console.log("RESULT", result)
-      console.log(groupLocation, groupChannel.parentID)
-
       if (!result || !groupLocation) return await message.reply("Los organizadores solo pueden usar este comando en un canal de grupo.");
       
       group = message.guild.roles.cache.find((role) =>

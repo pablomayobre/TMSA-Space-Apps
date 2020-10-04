@@ -1,7 +1,7 @@
 const { MessageEmbed } = require("discord.js");
 
 const getTimeLeft = () => {
-  const total = Date.parse('October 4 2020 23:59:00 GMT+0300') - Date.now()
+  const total = Date.UTC(2020, 9, 5, 2, 59, 00) - Date.now()
 
   if (total <= 0) return [0, 0, 0]
   const seconds = Math.floor( (total/1000) % 60 );
