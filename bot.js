@@ -3,7 +3,7 @@ const path = require("path");
 const dmCommand = require("./users/dmCommand");
 const {removeMember, addMember} = require("./users/checkInvite");
 const helpers = require("./helpers");
-const allSettled = require("promise.allSettled")
+const allSettled = require("promise.allsettled")
 const db = require("./users/model")
 
 const whitelist = new Set(process.env.DISCORDSERVERID);
